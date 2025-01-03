@@ -1,0 +1,181 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Website</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none; }
+        input, button { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>Bank Website</h1>
+    
+    <div id="loginRegister">
+        <h2>Login / Register</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <input type="password" id="pin" placeholder="PIN">
+        <button onclick="login()">Login</button>
+        <button onclick="register()">Register</button>
+    </div>
+    
+    <div id="loggedIn" class="hidden">
+        <h2>Welcome, <span id="loggedInUsername"></span></h2>
+        <button onclick="logout()">Logout</button>
+        <h3>Balance: $<span id="balance"></span></h3>
+        <h3>Transfer Money</h3>
+        <input type="text" id="recipient" placeholder="Recipient Username">
+        <input type="number" id="amount" placeholder="Amount">
+        <button onclick="transfer()">Transfer</button>
+        <h3>Transaction History</h3>
+        <ul id="transactions"></ul>
+        <h3>Profile</h3>
+        <p>Username: <span id="profileUsername"></span></p>
+        <p>Password: <span id="profilePassword"></span></p>
+        <p>PIN: <span id="profilePin"></span></p>
+        <h4>Update Profile</h4>
+        <input type="password" id="newPassword" placeholder="New Password">
+        <input type="password" id="newPin" placeholder="New PIN">
+        <button onclick="updateProfile()">Update</button>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        let currentUsername = localStorage.getItem('username');
+
+        function showLoggedIn() {
+            document.getElementById('loginRegister').classList.add('hidden');
+            document.getElementById('loggedIn').classList.remove('hidden');
+            document.getElementById('loggedInUsername').textContent = currentUsername;
+            fetchBalance();
+            fetchTransactions();
+            fetchProfile();
+        }
+
+        function showLoginRegister() {
+            document.getElementById('loginRegister').classList.remove('hidden');
+            document.getElementById('loggedIn').classList.add('hidden');
+        }
+
+        function register() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const pin = document.getElementById('pin').value;
+
+            fetch('/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, pin })
+            })
+            .then(response => response.json())
+            .then(data => alert(data.message))
+            .catch(error => console.error('Error:', error));
+        }
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const pin = document.getElementById('pin').value;
+
+            fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, pin })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.token) {
+                    token = data.token;
+                    currentUsername = data.username;
+                    localStorage.setItem('token', token);
+                    localStorage.setItem('username', currentUsername);
+                    showLoggedIn();
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            token = null;
+            currentUsername = null;
+            showLoginRegister();
+        }
+
+        function fetchBalance() {
+            fetch(`/api/${currentUsername}/balance?token=${token}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('balance').textContent = data.balance;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function fetchTransactions() {
+            fetch(`/api/${currentUsername}/transactions?token=${token}`)
+            .then(response => response.json())
+            .then(data => {
+                const transactionsList = document.getElementById('transactions');
+                transactionsList.innerHTML = '';
+                data.forEach(transaction => {
+                    const li = document.createElement('li');
+                    li.textContent = `${transaction.type}: $${transaction.amount} (Balance: $${transaction.balance})`;
+                    transactionsList.appendChild(li);
+                });
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function fetchProfile() {
+            fetch(`/api/${currentUsername}/profile?token=${token}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('profileUsername').textContent = data.username;
+                document.getElementById('profilePassword').textContent = data.password;
+                document.getElementById('profilePin').textContent = data.pin;
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function transfer() {
+            const recipient = document.getElementById('recipient').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+
+            fetch('/api/transfer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, recipient, amount })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert(data.message);
+                fetchBalance();
+                fetchTransactions();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        function updateProfile() {
+            const newPassword = document.getElementById('newPassword').value;
+            const newPin = document.getElementById('newPin').value;
+
+            // This functionality is not implemented in the server code
+            // You would need to add an endpoint to handle profile updates
+            alert('Profile update functionality not implemented');
+        }
+
+        if (token) {
+            showLoggedIn();
+        } else {
+            showLoginRegister();
+        }
+    </script>
+</body>
+</html>
